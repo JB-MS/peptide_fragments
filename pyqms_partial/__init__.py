@@ -27,3 +27,4 @@ version = '0.0.0-alpha'
 
 from . import knowledge_base
 from .chemical_composition import ChemicalComposition
+from .unimod_mapper import UnimodMapper

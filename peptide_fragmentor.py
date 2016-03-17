@@ -16,7 +16,6 @@ from __future__ import absolute_import
 from __future__ import print_function
 import sys
 from collections import defaultdict as ddict
-from operator import itemgetter
 import pyqms
 import pprint
 
@@ -156,6 +155,7 @@ def induce_fragmentation( peptide, charges=None ):
         if b_aa in 'STDE':
             b_neulo.append( SUB_WATER )
         if b_pos != len(cc_factory.peptide):
+            # print( '''>>>>''', b_pos)
             b_cc = cc_factory.composition_at_pos[ b_pos ]
             for element, count in b_cc.items():
                 b_ccs[ element ] += count
@@ -252,12 +252,13 @@ def induce_fragmentation( peptide, charges=None ):
 if __name__ == '__main__':
     # the_all_new_pf('AMQAK#Oxidation:2')
     if len(sys.argv) == 1:
-        ions = induce_fragmentation('LVQFHFHWGSSDDQGSEHTVDR', charges=[1,2,3])
-        # pprint.pprint( n_term_buffer )
-        pprint.pprint( ions )
-        exit(1)
-        print (__doc__)
-        print(len(sys.argv))
-        exit(1)
-    peptide = sys.argv[1]
+        peptide = 'LVQFHFHWGSSDDQGSEHTVDR'
+        print(__doc__)
+    else:
+        peptide = sys.argv[1]
+    ions = induce_fragmentation(
+        peptide,
+        charges=[1, 2, 3]
+    )
+    pprint.pprint( ions )
 
