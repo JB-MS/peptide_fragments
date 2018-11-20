@@ -130,15 +130,30 @@ def test_fragment_two_aa_peptide_a_series():
     assert len(fragments) == 2
 
     row = fragments.iloc[0]
-    print(row)
     assert row['name'] == 'a1'
     assert row['cc'] == 'C(4)H(9)N(1)S(1)'
     assert row['charge'] == 1
     assert pytest.approx(
         row['mz'],
         5e-6
-    ) == 104.048761555
+    ) == 104.05284693456998
 
+
+def test_fragment_three_aa_peptide_a_series():
+    """Test y2 fragmentation"""
+    fragger = PeptideFragment0r('MKK')
+    fragments = fragger.fragment_peptide(ion_series=['a'])
+    assert isinstance(fragments, DataFrame)
+    assert len(fragments) == 2
+
+    row = fragments.iloc[1]
+    assert row['name'] == 'a2'
+    assert row['cc'] == 'C(4)H(9)N(1)S(1)'
+    assert row['charge'] == 1
+    assert pytest.approx(
+        row['mz'],
+        5e-6
+    ) == 104.05284693456998
 
 # def test_fragment_one_aa_peptide_internal():
 #     fragger = PeptideFragment0r('RKKR')
