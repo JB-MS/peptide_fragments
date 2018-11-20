@@ -37,10 +37,10 @@ class PeptideFragment0r:
         self.fragment_starts = {
             'a': {'C': -1, 'O': -1},
             'b': {},
-            'c': {'N': 1, 'H': 3},
+            'c': {'N': +1, 'H': +3},
             'x': {'O': 2, 'C': 1},
             'y': {'H': 2, 'O': 1},
-            'z': {'O': 1, 'N': 1, 'H': 1},
+            'z': {'O': 1, 'N': -1, 'H': -1},
             'internal b-y': {'C': -1, 'O': -1},
             'internal a-y': {},
         }
@@ -69,9 +69,9 @@ class PeptideFragment0r:
             cc += series_correction_cc
             for i, aa in enumerate(self.peptide):
                 pos = i + 1
-                if series == 'b' or series == 'a':
+                if series in 'abc':
                     i += 1
-                elif series == 'y':
+                elif series in 'xyz':
                     i = len(self.peptide) - i
                 cc += full_pep.composition_at_pos[i]
                 try:
