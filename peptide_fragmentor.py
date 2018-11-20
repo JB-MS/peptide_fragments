@@ -37,11 +37,12 @@ class PeptideFragment0r:
         self.fragment_starts = {
             'a': {'C': -1, 'O': -1},
             'b': {},
-            'c': {},
-            'x': {},
+            'c': {'N': 1, 'H': 3},
+            'x': {'O': 2, 'C': 1},
             'y': {'H': 2, 'O': 1},
-            'z': {},
-            'internal': {'C': -1, 'O': -1},
+            'z': {'O': 1, 'N': 1, 'H': 1},
+            'internal b-y': {'C': -1, 'O': -1},
+            'internal a-y': {},
         }
 
     def fragment_peptide(
