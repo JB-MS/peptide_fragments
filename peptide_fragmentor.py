@@ -116,13 +116,12 @@ class PeptideFragment0r:
         cc = ChemicalComposition()
         full_pep = ChemicalComposition(self.upep)
         all_rows = []
+        # Start with precursor mass
         for series in ion_series:
             series_correction_cc = self.fragment_starts[series]
             cc += series_correction_cc
             mods = []
             neulos = []
-
-            # calc neutral_loss combinations
 
             for i, aa in enumerate(self.peptide):
                 pos = i + 1
@@ -130,6 +129,8 @@ class PeptideFragment0r:
                     i += 1
                 elif series in 'xyz':
                     i = len(self.peptide) - i
+                elif 'internal' in series:
+                    pass
                 cc += full_pep.composition_at_pos[i]
                 try:
                     mod = full_pep.unimod_at_pos.get(i, '')
@@ -158,7 +159,20 @@ class PeptideFragment0r:
                 all_rows += mul_charge_rows
             mul_neulo_rows = self._expand_neulos(row, neulos)
             all_rows += mul_neulo_rows
-
+        # Precursor ion
+        all_rows.append(
+            {
+                'name': '[MH]',
+                'cc': full_pep.hill_notation_unimod(),
+                'charge': 1,
+                'mz': full_pep._mass() + kb.PROTON,
+                'predicted intensity': np.NAN,
+                'series': '',
+                'pos': '',
+                'mods': self.mods,
+                'neutral loss': '',
+            }
+        )
         df = pd.DataFrame(all_rows)
         return df
 
