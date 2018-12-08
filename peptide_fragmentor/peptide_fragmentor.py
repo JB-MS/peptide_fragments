@@ -5,22 +5,20 @@ import pandas as pd
 import numpy as np
 from pyqms.chemical_composition import ChemicalComposition
 
-import knowledge_base as kb
-from knowledge_base import neutral_losses as kb_neutral_losses
+import peptide_fragmentor
+# import peptide_fragmentor.knowledge_base as kb
+# from peptide_fragmentor.knowledge_base import neutral_losses as kb_neutral_losses
 
 
 class PeptideFragment0r:
-    def __init__(
-        self,
-        upep: str,
-        charges: list = None,
-        neutral_losses: list = None
-    ) -> None:
-        """Initialze fragmentor with peptide `upep`.
+    def __init__(self, upep, charges=None, neutral_losses=None):
+        """
+        Initialize framentOr with peptide `upep`.
 
         Args:
             upep (str): Description
-            charges (list, optional): Description
+            charges (list, optional): Charges for frag ion creation, default
+                is 1, 2, 3
             neutral_losses (list, optional): Description
         """
         if charges is None:
@@ -28,9 +26,9 @@ class PeptideFragment0r:
         else:
             self.charges = charges
         if neutral_losses is None:
-            neutral_losses = kb_neutral_losses
+            neutral_losses = peptide_fragmentor.neutral_losses
         else:
-            neutral_losses += kb_neutral_losses
+            neutral_losses += peptide_fragmentor.neutral_losses
         self.upep = upep
         split = self.upep.split('#')
         self.peptide = split[0]
@@ -52,6 +50,7 @@ class PeptideFragment0r:
 
     def _expand_charges(self, row, charges):
         rows = []
+        print('>>', row)
         for c in charges:
             if c == 1:
                 continue
@@ -63,9 +62,9 @@ class PeptideFragment0r:
                 'series': row['series'],
                 'pos': row['pos'],
                 'mods': row['mods'],
-                'neutral_loss': row['neutral_loss']
+                'neutral loss': row['neutral loss']
             }
-            mz = (row['mz'] / c) + kb.PROTON
+            mz = (row['mz'] / c) + peptide_fragmentor.PROTON
             new_row['mz'] = mz
             rows.append(new_row)
         return rows
@@ -87,7 +86,7 @@ class PeptideFragment0r:
                 'name': row['name'],
                 'cc': old_cc.hill_notation_unimod(),
                 'charge': row['charge'],
-                'mz': old_cc._mass() + kb.PROTON,
+                'mz': old_cc._mass() + peptide_fragmentor.PROTON,
                 'predicted intensity': row['predicted intensity'],
                 'series': row['series'],
                 'pos': row['pos'],
@@ -97,11 +96,7 @@ class PeptideFragment0r:
             all_rows.append(new_row)
         return all_rows
 
-    def fragment_peptide(
-        self,
-        ion_series: tuple = None,
-        use_neutral_loss: bool = True
-    ) -> pd.DataFrame:
+    def fragment_peptide( self,ion_series = None, use_neutral_loss = True):
         """Fragment `upep` and return specified ion series.
 
         Args:
@@ -147,7 +142,7 @@ class PeptideFragment0r:
                     'name': f'{series}{pos}',
                     'cc': cc.hill_notation_unimod(),
                     'charge': 1,
-                    'mz': cc._mass() + kb.PROTON,
+                    'mz': cc._mass() + peptide_fragmentor.PROTON,
                     'predicted intensity': np.NAN,
                     'series': series,
                     'pos': i,
@@ -165,7 +160,7 @@ class PeptideFragment0r:
                 'name': '[MH]',
                 'cc': full_pep.hill_notation_unimod(),
                 'charge': 1,
-                'mz': full_pep._mass() + kb.PROTON,
+                'mz': full_pep._mass() + peptide_fragmentor.PROTON,
                 'predicted intensity': np.NAN,
                 'series': '',
                 'pos': '',
@@ -178,9 +173,4 @@ class PeptideFragment0r:
 
 
 if __name__ == '__main__':
-    pep = 'ELVISLIVES#Acetyl:0'
-    fragger = PeptideFragment0r(pep)
-    df = fragger.fragment_peptide(
-        ion_series=('a', 'b', 'y')
-    )
-    print(df.set_index(['series', 'pos']))
+    mains()
