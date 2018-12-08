@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 import peptide_fragmentor
-
+import pandas as pd
+import pyqms
+import click
 
 
 
 if __name__ == '__main__':
-    pep = 'ELVISLIVES#Acetyl:0'
-    print(dir(peptide_fragmentor))
+    pd.set_option('display.max_columns', 500)
+    pep = 'SS#Phospho:2' #Acetyl:0'
     fragger = peptide_fragmentor.PeptideFragment0r(pep)
-    df = fragger.fragment_peptide(
-        ion_series=('a', 'b', 'y')
-    )
-    print(df.set_index(['series', 'pos']))
+    df = fragger.df
+    print(df.head(10))
+    print(df.describe())
+    df_by = df[df['series'].isin(['b','y'])]
+    print(df_by[['name', 'modstring', 'mz']].sort_values('mz'))
