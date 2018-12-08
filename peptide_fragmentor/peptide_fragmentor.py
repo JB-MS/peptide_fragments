@@ -96,8 +96,6 @@ class PeptideFragment0r:
             for grp in groups:
                 cc = self.upep_cc.composition_at_pos[grp['translated_peptide_pos']]
                 grp['target']['pos{0}'.format(i+1)] = ddict(list)
-                # extending the dicts
-                # print('self.upep_cc.unimod_at_pos', self.upep_cc.unimod_at_pos)
                 for neutral_loss_dict in self.neutral_losses.get(grp['aa'], [{}]):
                     neutral_loss_can_occure = False
                     required_unimods = neutral_loss_dict.get('requires_unimod', None)
@@ -148,142 +146,142 @@ class PeptideFragment0r:
 
         self.df = pd.DataFrame(all_rows)
 
-    def _clean_up_mod_string(self, mod_string=None):
-        pass
+    # def _clean_up_mod_string(self, mod_string=None):
+    #     pass
 
-    def _create_peptide_variants(self, neutral_losses=None):
-        if neutral_losses is None:
-            #for testing purpose
-            neutral_losses = self.neutral_losses
-        variations = [""]
-        for pos, aa in enumerate(self.upep):
-            pass
-
-
+    # def _create_peptide_variants(self, neutral_losses=None):
+    #     if neutral_losses is None:
+    #         #for testing purpose
+    #         neutral_losses = self.neutral_losses
+    #     variations = [""]
+    #     for pos, aa in enumerate(self.upep):
+    #         pass
 
 
 
-    def _expand_charges(self, row, charges):
-        rows = []
-        for c in charges:
-            if c == 1:
-                continue
-            new_row = {
-                'name': row['name'],
-                'cc': row['cc'],
-                'charge': c,
-                'predicted intensity': np.NAN,
-                'series': row['series'],
-                'pos': row['pos'],
-                'mods': row['mods'],
-                'neutral loss': row['neutral loss']
-            }
-            mz = (row['mz'] / c) + peptide_fragmentor.PROTON
-            new_row['mz'] = mz
-            rows.append(new_row)
-        return rows
 
-    def _expand_neulos(self, row, neulos):
-        cc = ChemicalComposition()
-        all_rows = []
-        # breakpoint()
-        combs = [
-            (x[0][1], x[1][1]) for x in combinations(
-                neulos, int(len(neulos) / 2)
-            ) if (len(x) > 1) and (x[0][0] != x[1][0])
-        ]
-        for combi in combs:
-            old_cc = ChemicalComposition(f'+{row["cc"]}')
-            for cc in combi:
-                old_cc.add_chemical_formula(cc)
-            new_row = {
-                'name': row['name'],
-                'cc': old_cc.hill_notation_unimod(),
-                'charge': row['charge'],
-                'mz': old_cc._mass() + peptide_fragmentor.PROTON,
-                'predicted intensity': row['predicted intensity'],
-                'series': row['series'],
-                'pos': row['pos'],
-                'mods': row['mods'],
-                'neutral_loss': combi
-            }
-            all_rows.append(new_row)
-        return all_rows
 
-    def fragment_peptide( self,ion_series = None, use_neutral_loss = True):
-        """Fragment `upep` and return specified ion series.
+    # def _expand_charges(self, row, charges):
+    #     rows = []
+    #     for c in charges:
+    #         if c == 1:
+    #             continue
+    #         new_row = {
+    #             'name': row['name'],
+    #             'cc': row['cc'],
+    #             'charge': c,
+    #             'predicted intensity': np.NAN,
+    #             'series': row['series'],
+    #             'pos': row['pos'],
+    #             'mods': row['mods'],
+    #             'neutral loss': row['neutral loss']
+    #         }
+    #         mz = (row['mz'] / c) + peptide_fragmentor.PROTON
+    #         new_row['mz'] = mz
+    #         rows.append(new_row)
+    #     return rows
 
-        Args:
-            ion_series (tuple, optional): Ion series to create.
-                should be one of a, b, c, x, y, z or internal
-            use_neutral_loss (bool, optional): Use neutral losses specified
-                during init
-        """
-        if ion_series is None:
-            ion_series = ('y', 'b')
+    # def _expand_neulos(self, row, neulos):
+    #     cc = ChemicalComposition()
+    #     all_rows = []
+    #     # breakpoint()
+    #     combs = [
+    #         (x[0][1], x[1][1]) for x in combinations(
+    #             neulos, int(len(neulos) / 2)
+    #         ) if (len(x) > 1) and (x[0][0] != x[1][0])
+    #     ]
+    #     for combi in combs:
+    #         old_cc = ChemicalComposition(f'+{row["cc"]}')
+    #         for cc in combi:
+    #             old_cc.add_chemical_formula(cc)
+    #         new_row = {
+    #             'name': row['name'],
+    #             'cc': old_cc.hill_notation_unimod(),
+    #             'charge': row['charge'],
+    #             'mz': old_cc._mass() + peptide_fragmentor.PROTON,
+    #             'predicted intensity': row['predicted intensity'],
+    #             'series': row['series'],
+    #             'pos': row['pos'],
+    #             'mods': row['mods'],
+    #             'neutral_loss': combi
+    #         }
+    #         all_rows.append(new_row)
+    #     return all_rows
 
-        cc = ChemicalComposition()
-        full_pep = ChemicalComposition(self.upep)
-        all_rows = []
-        # Start with precursor mass
-        for series in ion_series:
-            series_correction_cc = self.fragment_starts[series]
-            cc += series_correction_cc
-            mods = []
-            neulos = []
+    # def fragment_peptide( self,ion_series = None, use_neutral_loss = True):
+    #     """Fragment `upep` and return specified ion series.
 
-            for i, aa in enumerate(self.peptide):
-                pos = i + 1
-                if series in 'abc':
-                    i += 1
-                elif series in 'xyz':
-                    i = len(self.peptide) - i
-                elif 'internal' in series:
-                    pass
-                cc += full_pep.composition_at_pos[i]
-                try:
-                    mod = full_pep.unimod_at_pos.get(i, '')
-                    mods.append(mod)
-                    neulos.append(
-                        (i, self.neutral_losses[aa][mod])
-                    )
-                    neulos.append(
-                        (i, {})
-                    )  # second possibility: no nl
-                except KeyError:
-                    pass
-                row = {
-                    'name': f'{series}{pos}',
-                    'cc': cc.hill_notation_unimod(),
-                    'charge': 1,
-                    'mz': cc._mass() + peptide_fragmentor.PROTON,
-                    'predicted intensity': np.NAN,
-                    'series': series,
-                    'pos': i,
-                    'mods': ';'.join(mods),
-                    'neutral loss': [],
-                }
-                all_rows.append(row)
-                mul_charge_rows = self._expand_charges(row, self.charges)
-                all_rows += mul_charge_rows
-            mul_neulo_rows = self._expand_neulos(row, neulos)
-            all_rows += mul_neulo_rows
-        # Precursor ion
-        all_rows.append(
-            {
-                'name': '[MH]',
-                'cc': full_pep.hill_notation_unimod(),
-                'charge': 1,
-                'mz': full_pep._mass() + peptide_fragmentor.PROTON,
-                'predicted intensity': np.NAN,
-                'series': '',
-                'pos': '',
-                'mods': self.mods,
-                'neutral loss': '',
-            }
-        )
-        df = pd.DataFrame(all_rows)
-        return df
+    #     Args:
+    #         ion_series (tuple, optional): Ion series to create.
+    #             should be one of a, b, c, x, y, z or internal
+    #         use_neutral_loss (bool, optional): Use neutral losses specified
+    #             during init
+    #     """
+    #     if ion_series is None:
+    #         ion_series = ('y', 'b')
+
+    #     cc = ChemicalComposition()
+    #     full_pep = ChemicalComposition(self.upep)
+    #     all_rows = []
+    #     # Start with precursor mass
+    #     for series in ion_series:
+    #         series_correction_cc = self.fragment_starts[series]
+    #         cc += series_correction_cc
+    #         mods = []
+    #         neulos = []
+
+    #         for i, aa in enumerate(self.peptide):
+    #             pos = i + 1
+    #             if series in 'abc':
+    #                 i += 1
+    #             elif series in 'xyz':
+    #                 i = len(self.peptide) - i
+    #             elif 'internal' in series:
+    #                 pass
+    #             cc += full_pep.composition_at_pos[i]
+    #             try:
+    #                 mod = full_pep.unimod_at_pos.get(i, '')
+    #                 mods.append(mod)
+    #                 neulos.append(
+    #                     (i, self.neutral_losses[aa][mod])
+    #                 )
+    #                 neulos.append(
+    #                     (i, {})
+    #                 )  # second possibility: no nl
+    #             except KeyError:
+    #                 pass
+    #             row = {
+    #                 'name': f'{series}{pos}',
+    #                 'cc': cc.hill_notation_unimod(),
+    #                 'charge': 1,
+    #                 'mz': cc._mass() + peptide_fragmentor.PROTON,
+    #                 'predicted intensity': np.NAN,
+    #                 'series': series,
+    #                 'pos': i,
+    #                 'mods': ';'.join(mods),
+    #                 'neutral loss': [],
+    #             }
+    #             all_rows.append(row)
+    #             mul_charge_rows = self._expand_charges(row, self.charges)
+    #             all_rows += mul_charge_rows
+    #         mul_neulo_rows = self._expand_neulos(row, neulos)
+    #         all_rows += mul_neulo_rows
+    #     # Precursor ion
+    #     all_rows.append(
+    #         {
+    #             'name': '[MH]',
+    #             'cc': full_pep.hill_notation_unimod(),
+    #             'charge': 1,
+    #             'mz': full_pep._mass() + peptide_fragmentor.PROTON,
+    #             'predicted intensity': np.NAN,
+    #             'series': '',
+    #             'pos': '',
+    #             'mods': self.mods,
+    #             'neutral loss': '',
+    #         }
+    #     )
+    #     df = pd.DataFrame(all_rows)
+    #     return df
 
 
 if __name__ == '__main__':
