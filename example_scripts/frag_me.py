@@ -8,7 +8,7 @@ import click
 
 if __name__ == '__main__':
     pd.set_option('display.max_columns', 500)
-    pep = 'SSS#Phospho:2' #Acetyl:0'
+    pep = 'ACDEFGHI' #Phospho:2' #Acetyl:0'
     fragger = peptide_fragmentor.PeptideFragment0r(pep)
     df = fragger.df
     print(df.head(10))

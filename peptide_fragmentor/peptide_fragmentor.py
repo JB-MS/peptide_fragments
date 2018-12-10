@@ -73,11 +73,30 @@ class PeptideFragment0r:
                     [{ 'pos': 0, 'cc': ChemicalComposition(), 'mods': []}]
                 direction['pos0'][ion_type][0]['cc'] += start[ion_type]
 
-        self._induce_fragmentation()
+        self.df = self._induce_fragmentation_of_ion_ladder()
+        # internal_fragments = self._induce_fragmentation_internal_fragments()
+        # self.df = pd.concat(ion_ladder, internal_fragments)
 
+    # def _induce_fragmentation_internal_fragments(self):
+    #     alread_seen_internal_fragments = set()
+    #     for i in range(2, len(self.peptide)):
+    #         cc = ChemicalComposition()
+    #         print('Internal base', self.peptide[1:i])
+    #         for pos in range(1, i):
+    #             cc += self.upep_cc.composition_at_pos[pos]
+    #             print(f'Adding {pos}', self.peptide[pos])
 
+    #         for reducing_pos in range(1, i):
+    #             print(f'reducing {reducing_pos} ', self.peptide[reducing_pos])
+    #         # for pos in range(i):
+    #         #     cc += self.upep_cc.composition_at_pos[pos]
 
-    def _induce_fragmentation(self):
+    #         # for k in range(1, i):
+    #         #     print(k,i)
+
+    #     exit(1)
+
+    def _induce_fragmentation_of_ion_ladder(self):
         alread_seen_frags = set()
         for i in range(len(self.peptide)):
             groups = [
@@ -144,7 +163,7 @@ class PeptideFragment0r:
                 for ion_type in direction[pos].keys():
                     all_rows += direction[pos][ion_type]
 
-        self.df = pd.DataFrame(all_rows)
+        return pd.DataFrame(all_rows)
 
     # def _clean_up_mod_string(self, mod_string=None):
     #     pass
