@@ -64,7 +64,16 @@ class PeptideFragment0r:
         }
         self.forward = self._init_pos0(self.fragment_starts_forward)
         self.reverse = self._init_pos0(self.fragment_starts_reverse)
+        abc_ions = self._fragfest(forward=True, pos_dict=self.forward)
+
+        all_rows = []
+        for pos_dict in [abc_ions]:
+            for pos in pos_dict.keys():
+                for ion_type in pos_dict[pos].keys():
+                    all_rows += pos_dict[pos][ion_type]
+
         self.df = self._induce_fragmentation_of_ion_ladder()
+        self.df2 = pd.DataFrame(all_rows)
 
     def _init_pos0(self, start_dict):
         r = {'pos0' : {}}
@@ -82,24 +91,73 @@ class PeptideFragment0r:
         # internal_fragments = self._induce_fragmentation_internal_fragments()
         # self.df = pd.concat(ion_ladder, internal_fragments)
 
-    # def _induce_fragmentation_internal_fragments(self):
-    #     alread_seen_internal_fragments = set()
-    #     for i in range(2, len(self.peptide)):
-    #         cc = ChemicalComposition()
-    #         print('Internal base', self.peptide[1:i])
-    #         for pos in range(1, i):
-    #             cc += self.upep_cc.composition_at_pos[pos]
-    #             print(f'Adding {pos}', self.peptide[pos])
 
-    #         for reducing_pos in range(1, i):
-    #             print(f'reducing {reducing_pos} ', self.peptide[reducing_pos])
-    #         # for pos in range(i):
-    #         #     cc += self.upep_cc.composition_at_pos[pos]
+    def _fragfest(self, forward=True, pos_dict=None, start_pos=None, end_pos=None, delete_pos0=True):
+        """
+        kwargs:
 
-    #         # for k in range(1, i):
-    #         #     print(k,i)
+            start_pos (int) Python index position where fragmentation should start
+                0 is first AA!
+        """
+        if start_pos is None:
+            start_pos = 0
+        if end_pos is None:
+            end_pos = len(self.peptide)
 
-    #     exit(1)
+        pos_dict = copy.deepcopy(pos_dict)
+        alread_seen_frags = set()
+        for i in range(start_pos, end_pos):
+            if forward:
+                translated_peptide_pos = i + 1
+                # Since chemical composition has modification on N-Term, which is 0
+                aa= self.peptide[i]
+            else:
+                translated_peptide_pos = len(self.peptide) - i
+                aa = self.peptide[::-1][i]
+
+            cc = self.upep_cc.composition_at_pos[translated_peptide_pos]
+            pos_dict['pos{0}'.format(i + 1)] = ddict(list)
+            for neutral_loss_dict in self.neutral_losses.get(aa, [{}]):
+                neutral_loss_can_occure = False
+                required_unimods = neutral_loss_dict.get('requires_unimod', None)
+                if required_unimods is None:
+                    neutral_loss_can_occure = True
+                else:
+                    uni_mod_at_pos = self.upep_cc.unimod_at_pos.get(
+                        translated_peptide_pos, ''
+                    )
+                    for required_unimod in required_unimods:
+                        if required_unimod == uni_mod_at_pos:
+                            neutral_loss_can_occure = True
+
+                if neutral_loss_can_occure is False:
+                    continue
+
+                for ion_type, ion_fragments in pos_dict['pos{0}'.format(i)].items():
+                    for ion_frag in ion_fragments:
+                        new_ion_frag = copy.deepcopy(ion_frag)
+                        new_ion_frag['pos'] += 1
+                        new_ion_frag['cc'] += cc
+                        new_ion_frag['cc'] += neutral_loss_dict.get('cc', {})
+                        mod = neutral_loss_dict.get('name', None)
+                        if mod is not None:
+                            new_ion_frag['mods'].append(mod)
+                        new_ion_frag['hill'] = new_ion_frag['cc'].hill_notation_unimod()
+                        new_ion_frag['charge'] = 1
+                        new_ion_frag['perdicted intensity'] = np.NAN
+                        new_ion_frag['mass'] = new_ion_frag['cc']._mass()
+                        new_ion_frag['mz'] = new_ion_frag['mass'] + peptide_fragmentor.PROTON
+                        new_ion_frag['series'] = ion_type
+                        new_ion_frag['modstring'] = ','.join(sorted(new_ion_frag['mods']))
+                        new_ion_frag['name'] = new_ion_frag['name_format_string'].format(**new_ion_frag)
+                        _id = '{name}{modstring}'.format(**new_ion_frag)
+                        if _id not in alread_seen_frags:
+                            pos_dict['pos{0}'.format(i+1)][ion_type].append(new_ion_frag)
+                        alread_seen_frags.add(_id)
+        if delete_pos0:
+            del pos_dict['pos0']
+
+        return pos_dict
 
     def _induce_fragmentation_of_ion_ladder(self):
         alread_seen_frags = set()
