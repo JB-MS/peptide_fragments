@@ -12,7 +12,7 @@ import peptide_fragmentor
 
 
 class PeptideFragment0r:
-    def __init__(self, upep, charges=None, neutral_losses=None):
+    def __init__(self, upep, charges=None, neutral_losses=None, ions=None):
         """
         Initialize framentOr with peptide `upep`.
 
@@ -22,6 +22,8 @@ class PeptideFragment0r:
             charges (list, optional): Charges for frag ion creation, default
                 is 1, 2, 3
             neutral_losses (list, optional): Description
+            ions (list of str): Which ions shall be calculated. Overhead is small
+                fall all ions so maybe not worth it ...
         """
         if charges is None:
             self.charges = [1, 2, 3]
@@ -42,10 +44,6 @@ class PeptideFragment0r:
         if len(split) == 2:
             self.mods = split[1].split(';')
 
-        self.internal_fragments = {
-            'internal b-y': {'C': -1, 'O': -1},
-            'internal a-y': {},  # TODO
-        }
         self.fragment_starts_forward = {
                 'a': {'cc': {'C': -1, 'O': -1}, 'name_format_string' : 'a{pos}'},
                 'b': {'cc': {}, 'name_format_string' : 'b{pos}'},
@@ -57,23 +55,45 @@ class PeptideFragment0r:
         self.fragment_starts_reverse = {
                 'x': {'cc': {'O': 2, 'C': 1}, 'name_format_string' : 'x{pos}'},
                 'y': {'cc': {'H': 2, 'O': 1}, 'name_format_string' : 'y{pos}'},
+                'Y': {'cc': {'H': 0, 'O': 1}, 'name_format_string' : 'Y{pos}'},
                 'z': {'cc': {'O': 1, 'N': -1, 'H': 0}, 'name_format_string' : 'z{pos}'},
                 # 'z(+1)': {'cc': {'O': 1, 'N': -1, 'H': 1}, 'name_format_string' : 'z(+1){pos}'},
                 # 'z(+2)': {'cc': {'O': 1, 'N': -1, 'H': 2}, 'name_format_string' : 'z(+2){pos}'},
                 # 'z(+3)': {'cc': {'O': 1, 'N': -1, 'H': 3}, 'name_format_string' : 'z(+3){pos}'},
         }
-        self.forward = self._init_pos0(self.fragment_starts_forward)
-        self.reverse = self._init_pos0(self.fragment_starts_reverse)
-        abc_ions = self._fragfest(forward=True, pos_dict=self.forward)
+        abc_ions = self._fragfest(forward=True, start_dict=self.fragment_starts_forward)
+        xyz_ions = self._fragfest(forward=False, start_dict=self.fragment_starts_reverse)
+        ions = [abc_ions, xyz_ions]
+
+        # Internal fragments
+        internal_frags = {}
+        for i in range(1, len(self.peptide)):
+            ions.append(
+                self._fragfest(
+                    start_dict={
+                        'I(b)' : {
+                            'cc': {},
+                            'name_format_string': 'Internal({seq})'
+                        },
+                        'I(a)' : {
+                            'cc': {'C': -1, 'O': -1},
+                            'name_format_string': 'I-28({seq})'
+                        }
+
+                    },
+                    start_pos=i,
+                )
+            )
 
         all_rows = []
-        for pos_dict in [abc_ions]:
+        for pos_dict in ions:
             for pos in pos_dict.keys():
                 for ion_type in pos_dict[pos].keys():
                     all_rows += pos_dict[pos][ion_type]
 
-        self.df = self._induce_fragmentation_of_ion_ladder()
-        self.df2 = pd.DataFrame(all_rows)
+        # self.df = self._induce_fragmentation_of_ion_ladder()
+        self.df = pd.DataFrame(all_rows)
+
 
     def _init_pos0(self, start_dict):
         r = {'pos0' : {}}
@@ -83,30 +103,29 @@ class PeptideFragment0r:
                     'pos': 0,
                     'cc': ChemicalComposition(),
                     'mods': [],
-                    'name_format_string': start_dict[ion_type]['name_format_string']
+                    'name_format_string': start_dict[ion_type]['name_format_string'],
+                    'seq': ''
                 }]
             r['pos0'][ion_type][0]['cc'] += start_dict[ion_type]['cc']
         return r
 
-        # internal_fragments = self._induce_fragmentation_internal_fragments()
-        # self.df = pd.concat(ion_ladder, internal_fragments)
-
-
-    def _fragfest(self, forward=True, pos_dict=None, start_pos=None, end_pos=None, delete_pos0=True):
+    def _fragfest(self, forward=True, start_dict=None, start_pos=None, end_pos=None, delete_pos0=True):
         """
         kwargs:
 
             start_pos (int) Python index position where fragmentation should start
                 0 is first AA!
         """
+        # print(f'Fragging {start_pos} {end_pos}')
         if start_pos is None:
             start_pos = 0
         if end_pos is None:
             end_pos = len(self.peptide)
 
-        pos_dict = copy.deepcopy(pos_dict)
+        pos_dict = self._init_pos0(start_dict)
         alread_seen_frags = set()
         for i in range(start_pos, end_pos):
+            dpos = i - start_pos
             if forward:
                 translated_peptide_pos = i + 1
                 # Since chemical composition has modification on N-Term, which is 0
@@ -116,7 +135,7 @@ class PeptideFragment0r:
                 aa = self.peptide[::-1][i]
 
             cc = self.upep_cc.composition_at_pos[translated_peptide_pos]
-            pos_dict['pos{0}'.format(i + 1)] = ddict(list)
+            pos_dict['pos{0}'.format(dpos + 1)] = ddict(list)
             for neutral_loss_dict in self.neutral_losses.get(aa, [{}]):
                 neutral_loss_can_occure = False
                 required_unimods = neutral_loss_dict.get('requires_unimod', None)
@@ -133,7 +152,8 @@ class PeptideFragment0r:
                 if neutral_loss_can_occure is False:
                     continue
 
-                for ion_type, ion_fragments in pos_dict['pos{0}'.format(i)].items():
+                is_series_specific = neutral_loss_dict.get(aa,)
+                for ion_type, ion_fragments in pos_dict['pos{0}'.format(dpos)].items():
                     for ion_frag in ion_fragments:
                         new_ion_frag = copy.deepcopy(ion_frag)
                         new_ion_frag['pos'] += 1
@@ -144,89 +164,90 @@ class PeptideFragment0r:
                             new_ion_frag['mods'].append(mod)
                         new_ion_frag['hill'] = new_ion_frag['cc'].hill_notation_unimod()
                         new_ion_frag['charge'] = 1
-                        new_ion_frag['perdicted intensity'] = np.NAN
+                        new_ion_frag['predicted intensity'] = np.NAN
                         new_ion_frag['mass'] = new_ion_frag['cc']._mass()
                         new_ion_frag['mz'] = new_ion_frag['mass'] + peptide_fragmentor.PROTON
                         new_ion_frag['series'] = ion_type
                         new_ion_frag['modstring'] = ','.join(sorted(new_ion_frag['mods']))
+                        new_ion_frag['seq'] += aa
                         new_ion_frag['name'] = new_ion_frag['name_format_string'].format(**new_ion_frag)
                         _id = '{name}{modstring}'.format(**new_ion_frag)
                         if _id not in alread_seen_frags:
-                            pos_dict['pos{0}'.format(i+1)][ion_type].append(new_ion_frag)
+                            pos_dict['pos{0}'.format(dpos+1)][ion_type].append(new_ion_frag)
                         alread_seen_frags.add(_id)
         if delete_pos0:
             del pos_dict['pos0']
 
         return pos_dict
 
-    def _induce_fragmentation_of_ion_ladder(self):
-        alread_seen_frags = set()
-        for i in range(len(self.peptide)):
-            groups = [
-                {
-                    'translated_peptide_pos': i + 1,
-                    'target': self.forward,
-                    'aa': self.peptide[i]
-                },
-                {
-                    'translated_peptide_pos': len(self.peptide) - i,
-                    'target': self.reverse,
-                    'aa': self.peptide[::-1][i]
-                }
-            ]
+    # def _induce_fragmentation_of_ion_ladder(self):
+    #     alread_seen_frags = set()
+    #     for i in range(len(self.peptide)):
+    #         groups = [
+    #             {
+    #                 'translated_peptide_pos': i + 1,
+    #                 'target': self.forward,
+    #                 'aa': self.peptide[i]
+    #             },
+    #             {
+    #                 'translated_peptide_pos': len(self.peptide) - i,
+    #                 'target': self.reverse,
+    #                 'aa': self.peptide[::-1][i]
+    #             }
+    #         ]
 
-            for grp in groups:
-                cc = self.upep_cc.composition_at_pos[grp['translated_peptide_pos']]
-                grp['target']['pos{0}'.format(i+1)] = ddict(list)
-                for neutral_loss_dict in self.neutral_losses.get(grp['aa'], [{}]):
-                    neutral_loss_can_occure = False
-                    required_unimods = neutral_loss_dict.get('requires_unimod', None)
-                    if required_unimods is None:
-                        neutral_loss_can_occure = True
-                    else:
-                        for required_unimod in required_unimods:
-                            if required_unimod == self.upep_cc.unimod_at_pos.get(
-                                    grp['translated_peptide_pos'], ''):
-                                neutral_loss_can_occure = True
+    #         for grp in groups:
+    #             cc = self.upep_cc.composition_at_pos[grp['translated_peptide_pos']]
+    #             grp['target']['pos{0}'.format(i+1)] = ddict(list)
+    #             for neutral_loss_dict in self.neutral_losses.get(grp['aa'], [{}]):
+    #                 neutral_loss_can_occure = False
+    #                 required_unimods = neutral_loss_dict.get('requires_unimod', None)
+    #                 if required_unimods is None:
+    #                     neutral_loss_can_occure = True
+    #                 else:
+    #                     for required_unimod in required_unimods:
+    #                         if required_unimod == self.upep_cc.unimod_at_pos.get(
+    #                                 grp['translated_peptide_pos'], ''):
+    #                             neutral_loss_can_occure = True
 
-                    if neutral_loss_can_occure is False:
-                        continue
+    #                 if neutral_loss_can_occure is False:
+    #                     continue
 
-                    for ion_type, ion_fragments in grp['target']['pos{0}'.format(i)].items():
-                        for ion_frag in ion_fragments:
-                            new_ion_frag = copy.deepcopy(ion_frag)
-                            new_ion_frag['pos'] += 1
-                            new_ion_frag['cc'] += cc
-                            new_ion_frag['cc'] += neutral_loss_dict.get('cc', {})
-                            mod = neutral_loss_dict.get('name',None)
-                            if mod is not None:
-                                new_ion_frag['mods'].append(mod)
-                            new_ion_frag['hill'] = new_ion_frag['cc'].hill_notation_unimod()
-                            new_ion_frag['charge'] = 1
-                            new_ion_frag['perdicted intensity'] = np.NAN
-                            new_ion_frag['mass'] = new_ion_frag['cc']._mass()
-                            new_ion_frag['mz'] = new_ion_frag['mass'] + peptide_fragmentor.PROTON
-                            new_ion_frag['series'] = ion_type
-                            new_ion_frag['modstring'] = ','.join(sorted(new_ion_frag['mods']))
-                            new_ion_frag['name'] = new_ion_frag['name_format_string'].format(**new_ion_frag)
-                            _id = '{name}{0}'.format(
-                                sorted(new_ion_frag['mods']),
-                                **new_ion_frag
-                            )
-                            if _id not in alread_seen_frags:
-                                grp['target']['pos{0}'.format(i+1)][ion_type].append(new_ion_frag)
-                            alread_seen_frags.add(_id)
+    #                 for ion_type, ion_fragments in grp['target']['pos{0}'.format(i)].items():
+    #                     for ion_frag in ion_fragments:
+    #                         new_ion_frag = copy.deepcopy(ion_frag)
+    #                         new_ion_frag['pos'] += 1
+    #                         new_ion_frag['cc'] += cc
+    #                         new_ion_frag['cc'] += neutral_loss_dict.get('cc', {})
+    #                         mod = neutral_loss_dict.get('name',None)
+    #                         if mod is not None:
+    #                             new_ion_frag['mods'].append(mod)
+    #                         new_ion_frag['hill'] = new_ion_frag['cc'].hill_notation_unimod()
+    #                         new_ion_frag['charge'] = 1
+    #                         new_ion_frag['perdicted intensity'] = np.NAN
+    #                         new_ion_frag['mass'] = new_ion_frag['cc']._mass()
+    #                         new_ion_frag['mz'] = new_ion_frag['mass'] + peptide_fragmentor.PROTON
+    #                         new_ion_frag['series'] = ion_type
+    #                         new_ion_frag['modstring'] = ','.join(sorted(new_ion_frag['mods']))
+    #                         new_ion_frag['name'] = new_ion_frag['name_format_string'].format(**new_ion_frag)
+    #                         _id = '{name}{0}'.format(
+    #                             sorted(new_ion_frag['mods']),
+    #                             **new_ion_frag
+    #                         )
+    #                         if _id not in alread_seen_frags:
+    #                             grp['target']['pos{0}'.format(i+1)][ion_type].append(new_ion_frag)
+    #                         alread_seen_frags.add(_id)
 
-        del self.forward['pos0']
-        del self.reverse['pos0']
+    #     del self.forward['pos0']
+    #     del self.reverse['pos0']
 
-        all_rows = []
-        for direction in [self.forward, self.reverse]:
-            for pos in direction.keys():
-                for ion_type in direction[pos].keys():
-                    all_rows += direction[pos][ion_type]
+    #     all_rows = []
+    #     for direction in [self.forward, self.reverse]:
+    #         for pos in direction.keys():
+    #             for ion_type in direction[pos].keys():
+    #                 all_rows += direction[pos][ion_type]
 
-        return pd.DataFrame(all_rows)
+    #     return pd.DataFrame(all_rows)
 
     # def _clean_up_mod_string(self, mod_string=None):
     #     pass
