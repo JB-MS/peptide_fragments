@@ -47,33 +47,38 @@ class PeptideFragment0r:
             'internal a-y': {},  # TODO
         }
         self.fragment_starts_forward = {
-                'a': {'C': -1, 'O': -1},
-                'b': {},
-                'c': {'N': +1, 'H': +3},
-                # 'c(-1)': {'N': +1, 'H': +2},
-                # 'c(+1)': {'N': +1, 'H': +4},
-                # 'c(+2)': {'N': +1, 'H': +5},
+                'a': {'cc': {'C': -1, 'O': -1}, 'name_format_string' : 'a{pos}'},
+                'b': {'cc': {}, 'name_format_string' : 'b{pos}'},
+                'c': {'cc': {'N': +1, 'H': +3}, 'name_format_string' : 'c{pos}'},
+                # 'c(-1)': {'cc': {'N': +1, 'H': +2}, 'name_format_string' : 'c)-1){pos}'},
+                # 'c(+1)': {'cc': {'N': +1, 'H': +4}, 'name_format_string' : 'c)+1){pos}'},
+                # 'c(+2)': {'cc': {'N': +1, 'H': +5}, 'name_format_string' : 'c)+2){pos}'},
         }
         self.fragment_starts_reverse = {
-                'x': {'O': 2, 'C': 1},
-                'y': {'H': 2, 'O': 1},
-                'z': {'O': 1, 'N': -1, 'H': 0},
-                # 'z(+1)': {'O': 1, 'N': -1, 'H': 1},
-                # 'z(+2)': {'O': 1, 'N': -1, 'H': 2},
-                # 'z(+3)': {'O': 1, 'N': -1, 'H': 3},
+                'x': {'cc': {'O': 2, 'C': 1}, 'name_format_string' : 'x{pos}'},
+                'y': {'cc': {'H': 2, 'O': 1}, 'name_format_string' : 'y{pos}'},
+                'z': {'cc': {'O': 1, 'N': -1, 'H': 0}, 'name_format_string' : 'z{pos}'},
+                # 'z(+1)': {'cc': {'O': 1, 'N': -1, 'H': 1}, 'name_format_string' : 'z(+1){pos}'},
+                # 'z(+2)': {'cc': {'O': 1, 'N': -1, 'H': 2}, 'name_format_string' : 'z(+2){pos}'},
+                # 'z(+3)': {'cc': {'O': 1, 'N': -1, 'H': 3}, 'name_format_string' : 'z(+3){pos}'},
         }
-        self.forward = {}
-        self.reverse = {}
-        for start, direction in [
-                (self.fragment_starts_forward, self.forward),
-                (self.fragment_starts_reverse, self.reverse)]:
-            direction['pos0'] = {}
-            for ion_type in start.keys():
-                direction['pos0'][ion_type] = \
-                    [{ 'pos': 0, 'cc': ChemicalComposition(), 'mods': []}]
-                direction['pos0'][ion_type][0]['cc'] += start[ion_type]
-
+        self.forward = self._init_pos0(self.fragment_starts_forward)
+        self.reverse = self._init_pos0(self.fragment_starts_reverse)
         self.df = self._induce_fragmentation_of_ion_ladder()
+
+    def _init_pos0(self, start_dict):
+        r = {'pos0' : {}}
+        for ion_type in start_dict.keys():
+            r['pos0'][ion_type] = \
+                [{
+                    'pos': 0,
+                    'cc': ChemicalComposition(),
+                    'mods': [],
+                    'name_format_string': start_dict[ion_type]['name_format_string']
+                }]
+            r['pos0'][ion_type][0]['cc'] += start_dict[ion_type]['cc']
+        return r
+
         # internal_fragments = self._induce_fragmentation_internal_fragments()
         # self.df = pd.concat(ion_ladder, internal_fragments)
 
@@ -138,7 +143,6 @@ class PeptideFragment0r:
                             mod = neutral_loss_dict.get('name',None)
                             if mod is not None:
                                 new_ion_frag['mods'].append(mod)
-                            new_ion_frag['name'] = '{0}{1}'.format(ion_type,new_ion_frag['pos'])
                             new_ion_frag['hill'] = new_ion_frag['cc'].hill_notation_unimod()
                             new_ion_frag['charge'] = 1
                             new_ion_frag['perdicted intensity'] = np.NAN
@@ -146,6 +150,7 @@ class PeptideFragment0r:
                             new_ion_frag['mz'] = new_ion_frag['mass'] + peptide_fragmentor.PROTON
                             new_ion_frag['series'] = ion_type
                             new_ion_frag['modstring'] = ','.join(sorted(new_ion_frag['mods']))
+                            new_ion_frag['name'] = new_ion_frag['name_format_string'].format(**new_ion_frag)
                             _id = '{name}{0}'.format(
                                 sorted(new_ion_frag['mods']),
                                 **new_ion_frag
