@@ -8,14 +8,14 @@ import click
 
 if __name__ == '__main__':
     pd.set_option('display.max_columns', 500)
-    pd.set_option('display.max_row', 500)
+    pd.set_option('display.max_row', 5000)
 
-    pep = 'ACDEFGHI' #Phospho:2' #Acetyl:0'
+    pep = 'ACDEFRGHIR' #Phospho:2' #Acetyl:0'
     fragger = peptide_fragmentor.PeptideFragment0r(pep)
     df = fragger.df
     print(df.head(10))
     print(df.describe())
     df_by = df#[df['series'].isin(['b','y'])]
-    print(df_by[['name', 'modstring', 'mz']].sort_values('mz').head(300))
+    print(df_by[['name', 'modstring', 'mz']].sort_values('mz').head(1000))
 
 

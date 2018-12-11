@@ -139,6 +139,7 @@ class PeptideFragment0r:
             for neutral_loss_dict in self.neutral_losses.get(aa, [{}]):
                 neutral_loss_can_occure = False
                 required_unimods = neutral_loss_dict.get('requires_unimod', None)
+
                 if required_unimods is None:
                     neutral_loss_can_occure = True
                 else:
@@ -152,8 +153,18 @@ class PeptideFragment0r:
                 if neutral_loss_can_occure is False:
                     continue
 
+                nl_limited_to_specific_ion_series = False
+                available_in_series = neutral_loss_dict.get('available_in_series', None)
+                if available_in_series is not None:
+                    nl_limited_to_specific_ion_series = True
+
+
                 is_series_specific = neutral_loss_dict.get(aa,)
                 for ion_type, ion_fragments in pos_dict['pos{0}'.format(dpos)].items():
+                    if nl_limited_to_specific_ion_series:
+                        if ion_type not in available_in_series:
+                            continue
+
                     for ion_frag in ion_fragments:
                         new_ion_frag = copy.deepcopy(ion_frag)
                         new_ion_frag['pos'] += 1
