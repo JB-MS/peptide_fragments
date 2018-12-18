@@ -35,6 +35,9 @@ class PeptideFragment0r:
             neutral_losses += peptide_fragmentor.neutral_losses
         self.neutral_losses = neutral_losses
 
+        if ions is None:
+            ions = ['a','b','y']
+
         self.upep_cc = ChemicalComposition(upep)
         self.upep = upep
         split = self.upep.split('#')
@@ -61,29 +64,30 @@ class PeptideFragment0r:
                 # 'z(+2)': {'cc': {'O': 1, 'N': -1, 'H': 2}, 'name_format_string' : 'z(+2){pos}'},
                 # 'z(+3)': {'cc': {'O': 1, 'N': -1, 'H': 3}, 'name_format_string' : 'z(+3){pos}'},
         }
-        abc_ions = self._fragfest(forward=True, start_dict=self.fragment_starts_forward)
-        xyz_ions = self._fragfest(forward=False, start_dict=self.fragment_starts_reverse)
+        abc_ions = self._fragfest(forward=True, start_dict={ k:v for k, v in self.fragment_starts_forward.items() if k in ions })
+        xyz_ions = self._fragfest(forward=False, start_dict={ k:v for k, v in self.fragment_starts_reverse.items() if k in ions})
         ions = [abc_ions, xyz_ions]
 
-        # Internal fragments
-        internal_frags = {}
-        for i in range(1, len(self.peptide)):
-            ions.append(
-                self._fragfest(
-                    start_dict={
-                        'I(b)' : {
-                            'cc': {},
-                            'name_format_string': 'Internal({seq})'
-                        },
-                        'I(a)' : {
-                            'cc': {'C': -1, 'O': -1},
-                            'name_format_string': 'I-28({seq})'
-                        }
+        if 'I' in ions:
+            # Internal fragments
+            internal_frags = {}
+            for i in range(1, len(self.peptide)):
+                ions.append(
+                    self._fragfest(
+                        start_dict={
+                            'I(b)' : {
+                                'cc': {},
+                                'name_format_string': 'Internal({seq})'
+                            },
+                            'I(a)' : {
+                                'cc': {'C': -1, 'O': -1},
+                                'name_format_string': 'I-28({seq})'
+                            }
 
-                    },
-                    start_pos=i,
+                        },
+                        start_pos=i,
+                    )
                 )
-            )
 
         all_rows = []
         for pos_dict in ions:
